@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner() {
+      return isAuthenticated() && request.auth.token.email == "seouldream903@gmail.com";
+    }
+
+    // Portfolio data rules
+    match /config/portfolio {
+      // Everyone can read the portfolio data
+      allow read: if true;
+      
+      // ONLY the owner can write/update the portfolio data
+      allow write: if isOwner();
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

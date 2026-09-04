@@ -1,0 +1,8 @@
+{
+  "name": "Essia Ajroud - AI Engineer Portfolio",
+  "description": "Interactive AI-themed portfolio for a Data Science & AI Engineer featuring neural network visualizations and a generative AI assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

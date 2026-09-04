@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "PortfolioData": {
+      "title": "PortfolioData",
+      "description": "The complete portfolio data for Essia Ajroud",
+      "type": "object",
+      "properties": {
+        "identity": { "type": "object" },
+        "socials": { "type": "object" },
+        "media": { "type": "object" },
+        "resume": { "type": "object" },
+        "projects": { "type": "object" },
+        "certifications": { "type": "object" },
+        "experiences": { "type": "object" },
+        "skills": { "type": "array" },
+        "about": { "type": "object" }
+      },
+      "required": ["identity", "socials", "media", "projects", "experiences", "skills", "about"]
+    }
+  },
+  "firestore": {
+    "/config/portfolio": {
+      "schema": "PortfolioData",
+      "description": "The main portfolio configuration document"
+    }
+  }
+}

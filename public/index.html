@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Essia Ajroud - AI Engineer Portfolio</title>
+    <meta name="description" content="Interactive AI-themed portfolio for a Data Science & AI Engineer featuring neural network visualizations and a generative AI assistant." />
+    <meta property="og:title" content="Essia Ajroud - AI Engineer Portfolio" />
+    <meta property="og:description" content="Interactive AI-themed portfolio for a Data Science & AI Engineer featuring neural network visualizations and a generative AI assistant." />
+    <script>
+      (function() {
+        function shouldSuppress(err) {
+          if (!err) return false;
+          var msg = (err.message || (err.reason && err.reason.message) || String(err.reason || '') || String(err)).toLowerCase();
+          return msg.includes('suspended') || msg.includes('auth/permission-denied') || msg.includes('api-key');
+        }
+        window.addEventListener('unhandledrejection', function(event) {
+          if (shouldSuppress(event.reason) || (event.reason && event.reason.code === 'auth/permission-denied')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            console.warn("Handled unhandledrejection for Firebase key suspension");
+          }
+        }, true);
+        window.addEventListener('error', function(event) {
+          if (shouldSuppress(event.error) || shouldSuppress(event.message)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            console.warn("Handled uncaught error for Firebase key suspension");
+          }
+        }, true);
+      })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #020617; /* slate-950 */
+        color: #e2e8f0;
+        overflow: hidden; /* Prevent native scroll, manage internally */
+      }
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+      /* Custom scrollbar for terminals */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f172a; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #475569; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.0",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
