@@ -66,8 +66,7 @@ const App: React.FC = () => {
   const [isSoundOn, setIsSoundOn] = useState(true);
   const [isAdminRoute, setIsAdminRoute] = useState(false);
   const synthRef = useRef<SpeechSynthesis | null>(null);
-
-  const [avatarClickCount, setAvatarClickCount] = useState(0);
+  const clickCountRef = useRef(0);
   const clickTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
@@ -102,16 +101,16 @@ const App: React.FC = () => {
   }, []);
 
   const handleAvatarClick = () => {
-    setAvatarClickCount(prev => {
-      const next = prev + 1;
-      if (next >= 4) {
-        setIsAdminRoute(true);
-        return 0;
-      }
-      return next;
-    });
+    clickCountRef.current += 1;
+    if (clickCountRef.current >= 4) {
+      clickCountRef.current = 0;
+      setIsAdminRoute(true);
+      return;
+    }
     if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
-    clickTimeoutRef.current = setTimeout(() => setAvatarClickCount(0), 1200);
+    clickTimeoutRef.current = setTimeout(() => {
+      clickCountRef.current = 0;
+    }, 1200);
   };
 
   const speak = React.useCallback((text: string) => {
@@ -294,7 +293,11 @@ const App: React.FC = () => {
         </AnimatePresence>
 
         <div 
-          className={`relative flex items-center justify-center transition-all duration-1000 ease-out ${activeSection ? 'scale-[0.55] md:translate-x-[-28vw]' : 'scale-100'}`}
+          className={`relative flex items-center justify-center transition-all duration-700 ease-out ${
+            activeSection 
+              ? 'scale-[0.75] md:scale-[0.88] lg:scale-[0.95] xl:scale-100 md:translate-x-[-22vw] lg:translate-x-[-24vw] xl:translate-x-[-26vw]' 
+              : 'scale-100'
+          }`}
           style={{ width: '380px', height: '380px' }}
         >
           <div className="absolute inset-0 rounded-full border border-cyan-500/5 animate-[spin_30s_linear_infinite]"></div>
@@ -305,6 +308,7 @@ const App: React.FC = () => {
               handleAvatarClick();
             }}
             onMouseEnter={() => speak("Essia Ajroud")}
+            title={activeSection ? (lang === 'fr' ? 'Fermer et centrer' : 'Close and center') : portfolioData.identity.name}
           >
              <div className="relative w-full h-full rounded-full overflow-hidden border-[3px] border-cyan-500/50 bg-slate-900 shadow-[0_0_40px_rgba(6,182,212,0.15)] group-hover:shadow-[0_0_50px_rgba(6,182,212,0.3)] transition-all duration-500">
                 <img 
@@ -324,10 +328,15 @@ const App: React.FC = () => {
             return (
               <motion.button 
                 key={item.id} 
-                className={`absolute w-14 h-14 rounded-full flex items-center justify-center border transition-all duration-500 z-30 shadow-md ${activeSection === item.id ? 'bg-cyan-500 text-slate-950 border-cyan-300 scale-110 shadow-cyan-500/40' : 'bg-slate-900/90 text-cyan-400 border-cyan-500/20 hover:border-cyan-400'}`}
+                className={`absolute w-14 h-14 rounded-full flex items-center justify-center border transition-all duration-500 z-30 shadow-md ${
+                  activeSection === item.id 
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 scale-110 shadow-cyan-500/40 ring-4 ring-cyan-500/20' 
+                    : 'bg-slate-900/90 text-cyan-400 border-cyan-500/20 hover:border-cyan-400 hover:scale-105'
+                }`}
                 style={{ transform: `translate(${x}px, ${y}px)` }} 
                 onClick={() => setActiveSection(activeSection === item.id ? null : item.id)} 
                 onMouseEnter={() => speak(item.label)}
+                title={item.label}
               >
                 <item.icon size={22} />
               </motion.button>
@@ -341,7 +350,7 @@ const App: React.FC = () => {
                initial={{ opacity: 0, x: 20 }} 
                animate={{ opacity: 1, x: 0 }} 
                exit={{ opacity: 0, x: 20 }}
-               className="fixed left-4 right-4 md:left-auto md:right-8 lg:right-12 xl:right-16 top-16 md:top-24 w-auto md:w-full md:max-w-xl max-h-[calc(100vh-10rem)] md:max-h-[calc(100vh-12rem)] overflow-y-auto bg-slate-900/95 p-6 md:p-10 rounded-3xl border border-cyan-500/20 backdrop-blur-2xl z-50 scrollbar-thin shadow-[0_0_60px_rgba(0,0,0,0.5)]"
+               className="fixed left-4 right-4 md:left-auto md:right-6 lg:right-10 xl:right-14 top-16 md:top-20 w-auto md:w-[480px] lg:w-[540px] xl:w-[600px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-9rem)] overflow-y-auto bg-slate-900/95 p-6 md:p-8 rounded-3xl border border-cyan-500/20 backdrop-blur-2xl z-50 scrollbar-thin shadow-[0_0_60px_rgba(0,0,0,0.6)]"
              >
                 <div className="flex justify-between items-center mb-6">
                    <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
