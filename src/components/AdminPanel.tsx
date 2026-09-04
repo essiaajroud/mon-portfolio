@@ -3,7 +3,7 @@ import {
   X, Save, Loader2, Sparkles, Plus, Trash2, 
   User, Award, Briefcase, BrainCircuit, 
   Zap, FileText, CheckCircle, AlertTriangle, LogOut,
-  Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp, Check
+  Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp
 } from 'lucide-react';
 import { PortfolioData } from '../types';
 import { PROFILE_IMAGE } from '../constants';
