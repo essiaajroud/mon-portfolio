@@ -13,7 +13,8 @@ import {
   Volume2,
   VolumeX,
   Phone,
-  Briefcase
+  Briefcase,
+  ExternalLink
 } from 'lucide-react';
 
 import NeuralBackground from './components/NeuralBackground';
@@ -24,6 +25,7 @@ import {
   INITIAL_DATA
 } from './constants';
 import { SectionId, PortfolioData } from './types';
+import { triggerPdfDownload } from './utils/documentStorage';
 
 import { db } from './firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -65,6 +67,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSoundOn, setIsSoundOn] = useState(true);
   const [isAdminRoute, setIsAdminRoute] = useState(false);
+  const [selectedProjectCategory, setSelectedProjectCategory] = useState<string>('ALL');
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const clickCountRef = useRef(0);
   const clickTimeoutRef = useRef<any>(null);
@@ -370,52 +373,135 @@ const App: React.FC = () => {
                          {lang === 'en' ? 'Technical_Expertise' : 'Expertise_Technique'}
                        </h3>
                        <div className="space-y-6">
-                         {['Core', 'Frameworks', 'Tools'].map(cat => {
-                           const filteredSkills = portfolioData.skills.filter(s => s.category === cat);
-                           if (filteredSkills.length === 0) return null;
-                           return (
-                             <div key={cat} className="space-y-2">
-                               <h4 className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">
-                                 {cat === 'Core' ? (lang === 'en' ? 'Core Skills' : 'Compétences Clés') : 
-                                  cat === 'Frameworks' ? 'Frameworks & Libraries' : 
-                                  (lang === 'en' ? 'Tools & Platforms' : 'Outils & Plateformes')}
-                               </h4>
-                               <div className="flex flex-wrap gap-2">
-                                 {filteredSkills.map(skill => (
-                                   <span 
-                                     key={skill.name} 
-                                     className="px-3 py-1.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 hover:border-cyan-500/30 text-xs text-slate-300 rounded-xl transition-all cursor-pointer font-mono"
-                                   >
-                                     {skill.name}
-                                   </span>
-                                 ))}
-                               </div>
-                             </div>
+                         {(() => {
+                           const allCats = Array.from(
+                             new Set(portfolioData.skills.map(s => s.category?.trim() || 'Other'))
                            );
-                         })}
+                           return allCats.map(cat => {
+                             const filteredSkills = portfolioData.skills.filter(s => (s.category?.trim() || 'Other') === cat);
+                             if (filteredSkills.length === 0) return null;
+
+                             let categoryLabel = cat;
+                             if (cat.toLowerCase() === 'core') categoryLabel = lang === 'en' ? 'Core Skills' : 'Compétences Clés';
+                             else if (cat.toLowerCase() === 'frameworks') categoryLabel = 'Frameworks & Libraries';
+                             else if (cat.toLowerCase() === 'tools') categoryLabel = lang === 'en' ? 'Tools & Platforms' : 'Outils & Plateformes';
+
+                             return (
+                               <div key={cat} className="space-y-2">
+                                 <h4 className="text-[11px] font-mono text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+                                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                                   {categoryLabel}
+                                 </h4>
+                                 <div className="flex flex-wrap gap-2">
+                                   {filteredSkills.map(skill => (
+                                     <span 
+                                       key={skill.name} 
+                                       className="px-3 py-1.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 hover:border-cyan-500/30 text-xs text-slate-300 rounded-xl transition-all cursor-pointer font-mono"
+                                     >
+                                       {skill.name}
+                                     </span>
+                                   ))}
+                                 </div>
+                               </div>
+                             );
+                           });
+                         })()}
                        </div>
                     </div>
                   </div>
                 )}
                 
-                {activeSection === SectionId.PROJECTS && (
-                  <div className="space-y-6">
-                    {portfolioData.projects[lang].map(project => (
-                      <div 
-                        key={project.id} 
-                        className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-cyan-500/30 transition-all cursor-pointer"
-                      >
-                        <h3 className="text-cyan-400 font-bold mb-2">{project.title}</h3>
-                        <p className="text-slate-300 text-xs mb-3">{project.description}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {project.techStack.map(tech => (
-                            <span key={tech} className="px-2 py-0.5 bg-cyan-900/30 text-cyan-500 rounded text-[10px] uppercase font-mono">{tech}</span>
+                {activeSection === SectionId.PROJECTS && (() => {
+                  const projectList = portfolioData.projects[lang] || [];
+                  const projectCategories = Array.from(
+                    new Set(projectList.map(p => p.category?.trim()).filter(Boolean))
+                  );
+                  const filteredProjects = selectedProjectCategory === 'ALL'
+                    ? projectList
+                    : projectList.filter(p => p.category?.trim() === selectedProjectCategory);
+
+                  return (
+                    <div className="space-y-5">
+                      {/* Filter by Category */}
+                      {projectCategories.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-slate-800/60">
+                          <button
+                            onClick={() => setSelectedProjectCategory('ALL')}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all cursor-pointer ${
+                              selectedProjectCategory === 'ALL'
+                                ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm shadow-cyan-500/30'
+                                : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700'
+                            }`}
+                          >
+                            {lang === 'en' ? 'All' : 'Tous'} ({projectList.length})
+                          </button>
+                          {projectCategories.map(cat => (
+                            <button
+                              key={cat}
+                              onClick={() => setSelectedProjectCategory(cat)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all cursor-pointer ${
+                                selectedProjectCategory === cat
+                                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm shadow-cyan-500/30'
+                                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700'
+                              }`}
+                            >
+                              {cat}
+                            </button>
                           ))}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      )}
+
+                      {/* Projects List */}
+                      {filteredProjects.map(project => (
+                        <div 
+                          key={project.id} 
+                          className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-cyan-500/30 transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <h3 className="text-cyan-400 font-bold group-hover:text-cyan-300 transition-colors">{project.title}</h3>
+                            {project.category && (
+                              <span className="shrink-0 px-2 py-0.5 bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 rounded text-[10px] uppercase font-mono tracking-wider">
+                                {project.category}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-300 text-xs mb-3 leading-relaxed">{project.description}</p>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap gap-1.5">
+                              {project.techStack.map(tech => (
+                                <span key={tech} className="px-2 py-0.5 bg-cyan-900/30 text-cyan-400 border border-cyan-500/20 rounded text-[10px] uppercase font-mono">{tech}</span>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {project.githubUrl && (
+                                <a 
+                                  href={project.githubUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-slate-400 hover:text-cyan-400 transition-colors p-1" 
+                                  title="Source Code"
+                                >
+                                  <Github size={14} />
+                                </a>
+                              )}
+                              {project.demoUrl && (
+                                <a 
+                                  href={project.demoUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-slate-400 hover:text-cyan-400 transition-colors p-1" 
+                                  title="Demo"
+                                >
+                                  <ExternalLink size={14} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {activeSection === SectionId.EXPERIENCE && (
                    <div className="space-y-6">
@@ -454,7 +540,6 @@ const App: React.FC = () => {
 
                 {activeSection === SectionId.CONTACT && (
                   <div className="space-y-6">
-                    <p className="text-slate-400 text-sm font-mono">{"// ESTABLISHING_COMMS_CHANNEL..."}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <a 
                         href={`mailto:${portfolioData.socials.email}`} 
@@ -503,15 +588,18 @@ const App: React.FC = () => {
                     <p className="text-slate-400 text-xs font-mono">
                       {lang === 'en' ? 'PDF format • Direct download' : 'Format PDF • Téléchargement direct'}
                     </p>
-                    <a 
-                      href={lang === 'en' ? portfolioData.resume.en : portfolioData.resume.fr} 
-                      download
-                      className="inline-flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-xl transition-all group shadow-lg shadow-cyan-500/20"
+                    <button 
+                      onClick={() => {
+                        const targetUrl = lang === 'en' ? portfolioData.resume.en : portfolioData.resume.fr;
+                        const defaultName = `CV_${(portfolioData.identity.name || 'Essia_Ajroud').replace(/\s+/g, '_')}_${lang.toUpperCase()}.pdf`;
+                        triggerPdfDownload(`cv_${lang}`, targetUrl, defaultName);
+                      }}
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-xl transition-all group shadow-lg shadow-cyan-500/20 cursor-pointer"
                       onMouseEnter={() => speak(titles.download)}
                     >
                       <Download size={18} />
                       {titles.download}
-                    </a>
+                    </button>
                   </div>
                 )}
              </motion.div>
