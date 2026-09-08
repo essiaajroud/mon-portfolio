@@ -715,7 +715,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                 <label className="block text-[10px] text-slate-400 uppercase font-mono tracking-wider">
                   Code d'accès Maître
                 </label>
-                <span className="text-[9px] font-mono text-cyan-500/80">Code par défaut : EssiaNeural2026!</span>
+                
               </div>
               <div className="relative">
                 <input 
