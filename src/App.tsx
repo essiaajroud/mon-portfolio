@@ -25,6 +25,7 @@ import {
   INITIAL_DATA
 } from './constants';
 import { SectionId, PortfolioData } from './types';
+import { triggerPdfDownload } from './utils/documentStorage';
 
 import { db } from './firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -539,7 +540,6 @@ const App: React.FC = () => {
 
                 {activeSection === SectionId.CONTACT && (
                   <div className="space-y-6">
-                    <p className="text-slate-400 text-sm font-mono">{"// ESTABLISHING_COMMS_CHANNEL..."}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <a 
                         href={`mailto:${portfolioData.socials.email}`} 
@@ -588,15 +588,18 @@ const App: React.FC = () => {
                     <p className="text-slate-400 text-xs font-mono">
                       {lang === 'en' ? 'PDF format • Direct download' : 'Format PDF • Téléchargement direct'}
                     </p>
-                    <a 
-                      href={lang === 'en' ? portfolioData.resume.en : portfolioData.resume.fr} 
-                      download
-                      className="inline-flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-xl transition-all group shadow-lg shadow-cyan-500/20"
+                    <button 
+                      onClick={() => {
+                        const targetUrl = lang === 'en' ? portfolioData.resume.en : portfolioData.resume.fr;
+                        const defaultName = `CV_${(portfolioData.identity.name || 'Essia_Ajroud').replace(/\s+/g, '_')}_${lang.toUpperCase()}.pdf`;
+                        triggerPdfDownload(`cv_${lang}`, targetUrl, defaultName);
+                      }}
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-xl transition-all group shadow-lg shadow-cyan-500/20 cursor-pointer"
                       onMouseEnter={() => speak(titles.download)}
                     >
                       <Download size={18} />
                       {titles.download}
-                    </a>
+                    </button>
                   </div>
                 )}
              </motion.div>
