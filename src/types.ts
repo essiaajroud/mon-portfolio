@@ -4,7 +4,7 @@ export interface Project {
   title: string;
   description: string;
   techStack: string[];
-  category: 'NLP' | 'Computer Vision' | 'Data Science' | 'GenAI';
+  category: string;
   githubUrl?: string;
   demoUrl?: string;
 }
@@ -20,7 +20,7 @@ export interface Experience {
 export interface Skill {
   name: string;
   level: number;
-  category: 'Core' | 'Tools' | 'Frameworks';
+  category: string;
 }
 
 export interface Certification {
