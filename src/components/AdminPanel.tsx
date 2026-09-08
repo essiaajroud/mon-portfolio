@@ -4,10 +4,10 @@ import {
   User, Award, Briefcase, BrainCircuit, 
   Zap, FileText, CheckCircle, AlertTriangle, LogOut,
   Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp, Tag,
-  Download, ExternalLink
+  Download, ExternalLink, GraduationCap
 } from 'lucide-react';
 import { PortfolioData } from '../types';
-import { PROFILE_IMAGE } from '../constants';
+import { PROFILE_IMAGE, INITIAL_DATA } from '../constants';
 import { db, auth, googleProvider } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { signInWithPopup, signOut as fbSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -34,8 +34,15 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'identity' | 'about' | 'experiences' | 'projects' | 'certs' | 'skills' | 'security' | 'ai'>('identity');
-  const [localData, setLocalData] = useState<PortfolioData>(data);
+  const [activeTab, setActiveTab] = useState<'identity' | 'about' | 'diplomas' | 'experiences' | 'projects' | 'certs' | 'skills' | 'security' | 'ai'>('identity');
+  const [localData, setLocalData] = useState<PortfolioData>(() => ({
+    ...data,
+    diplomas: data.diplomas || INITIAL_DATA.diplomas || { en: [], fr: [] },
+    contactMessage: data.contactMessage || INITIAL_DATA.contactMessage || {
+      en: "Do you have a project in Artificial Intelligence, Machine Learning, Data Science, or Generative AI?\n\nI am open to professional opportunities, innovative projects, and collaborations in the field of AI.",
+      fr: "Vous avez un projet en Intelligence Artificielle, Machine Learning, Data Science ou Generative AI ?\n\nJe suis ouverte aux opportunités professionnelles, aux projets innovants et aux collaborations dans le domaine de l'IA."
+    }
+  }));
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -568,11 +575,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
   };
 
   // Helper lists CRUD
-  const addItem = (type: 'experiences' | 'projects' | 'certifications', lang: 'en' | 'fr') => {
+  const addItem = (type: 'experiences' | 'projects' | 'certifications' | 'diplomas', lang: 'en' | 'fr') => {
     const id = Date.now().toString();
     setLocalData(prev => {
       const next = { ...prev } as any;
-      const currentList = next[type][lang] as any[];
+      if (!next[type]) next[type] = { en: [], fr: [] };
+      const currentList = (next[type][lang] || []) as any[];
       
       let newItem: any;
       if (type === 'projects') {
@@ -581,6 +589,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
         newItem = { id, role: 'New Role', company: 'New Company', period: '2026', description: 'Role description' };
       } else if (type === 'certifications') {
         newItem = { id, name: 'New Certification', issuer: 'Issuer', date: '2026' };
+      } else if (type === 'diplomas') {
+        newItem = {
+          id,
+          degree: lang === 'en' ? 'New Degree / Diploma' : 'Nouveau Diplôme',
+          institution: lang === 'en' ? 'University / School' : 'Université / École',
+          period: '2023 - 2026',
+          description: lang === 'en' ? 'Specialization and main focus' : 'Spécialisation et compétences clés'
+        };
       }
 
       next[type] = {
@@ -591,9 +607,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
     });
   };
 
-  const deleteItem = (type: 'experiences' | 'projects' | 'certifications', lang: 'en' | 'fr', id: string) => {
+  const deleteItem = (type: 'experiences' | 'projects' | 'certifications' | 'diplomas', lang: 'en' | 'fr', id: string) => {
     setLocalData(prev => {
       const next = { ...prev } as any;
+      if (!next[type] || !next[type][lang]) return prev;
       next[type] = {
         ...next[type],
         [lang]: (next[type][lang] as any[]).filter(item => item.id !== id)
@@ -602,9 +619,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
     });
   };
 
-  const updateItemField = (type: 'experiences' | 'projects' | 'certifications', lang: 'en' | 'fr', id: string, field: string, value: any) => {
+  const updateItemField = (type: 'experiences' | 'projects' | 'certifications' | 'diplomas', lang: 'en' | 'fr', id: string, field: string, value: any) => {
     setLocalData(prev => {
       const next = { ...prev } as any;
+      if (!next[type] || !next[type][lang]) return prev;
       next[type] = {
         ...next[type],
         [lang]: (next[type][lang] as any[]).map(item => {
@@ -818,6 +836,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
              { id: 'ai', icon: Sparkles, label: 'AI Generator' },
              { id: 'identity', icon: User, label: 'Identity' },
              { id: 'about', icon: FileText, label: 'Bio' },
+             { id: 'diplomas', icon: GraduationCap, label: 'Diplômes' },
              { id: 'experiences', icon: Briefcase, label: 'Experiences' },
              { id: 'projects', icon: BrainCircuit, label: 'Projects' },
              { id: 'certs', icon: Award, label: 'Certifications' },
@@ -1262,6 +1281,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* 5. Message Appel à Projets & Opportunités IA (Section Contact) */}
+                <div className="p-5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Message d'Accroche // Travaillons ensemble (Contact)
+                    </h4>
+                    <span className="text-[9px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded">
+                      SECTION CONTACT
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] text-cyan-400 font-mono uppercase tracking-wider">Version Anglaise (EN)</label>
+                      <textarea 
+                        value={localData.contactMessage?.en || ''} 
+                        onChange={(e) => updateNested(['contactMessage', 'en'], e.target.value)} 
+                        rows={5}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white focus:border-cyan-500 outline-none font-mono text-xs leading-relaxed" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] text-cyan-400 font-mono uppercase tracking-wider">Version Française (FR)</label>
+                      <textarea 
+                        value={localData.contactMessage?.fr || ''} 
+                        onChange={(e) => updateNested(['contactMessage', 'fr'], e.target.value)} 
+                        rows={5}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white focus:border-cyan-500 outline-none font-mono text-xs leading-relaxed" 
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
            )}
 
@@ -1286,6 +1338,141 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                     rows={6}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-cyan-500 outline-none font-mono text-xs leading-relaxed" 
                   />
+                </div>
+              </div>
+           )}
+
+           {/* Tab: Diplômes / Formations */}
+           {activeTab === 'diplomas' && (
+              <div className="space-y-8 max-w-4xl">
+                {/* English Diplomas */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-cyan-950 text-cyan-400 text-[9px] rounded font-mono">EN</span>
+                      Education & Diplomas (English)
+                    </h3>
+                    <button 
+                      onClick={() => addItem('diplomas', 'en')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg text-[10px] font-mono uppercase transition-all cursor-pointer"
+                    >
+                      <Plus size={12} /> Add Diploma (EN)
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(localData.diplomas?.en || []).map((dip) => (
+                      <div key={dip.id} className="p-4 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3 relative group">
+                        <button 
+                          onClick={() => deleteItem('diplomas', 'en', dip.id)}
+                          className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                          title="Supprimer ce diplôme"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="md:col-span-2">
+                            <label className="block text-[9px] text-slate-500 uppercase font-mono">Degree Title</label>
+                            <input 
+                              value={dip.degree} 
+                              onChange={(e) => updateItemField('diplomas', 'en', dip.id, 'degree', e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs focus:border-cyan-500 outline-none" 
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] text-slate-500 uppercase font-mono">Period / Year</label>
+                            <input 
+                              value={dip.period} 
+                              onChange={(e) => updateItemField('diplomas', 'en', dip.id, 'period', e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs focus:border-cyan-500 outline-none" 
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-slate-500 uppercase font-mono">Institution / University</label>
+                          <input 
+                            value={dip.institution} 
+                            onChange={(e) => updateItemField('diplomas', 'en', dip.id, 'institution', e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs focus:border-cyan-500 outline-none" 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-slate-500 uppercase font-mono">Description / Specialization (Optional)</label>
+                          <textarea 
+                            value={dip.description || ''} 
+                            onChange={(e) => updateItemField('diplomas', 'en', dip.id, 'description', e.target.value)}
+                            rows={2}
+                            className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-white font-mono text-xs leading-relaxed focus:border-cyan-500 outline-none" 
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* French Diplomas */}
+                <div className="space-y-4 pt-4 border-t border-slate-800">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-cyan-950 text-cyan-400 text-[9px] rounded font-mono">FR</span>
+                      Diplômes & Formations (French)
+                    </h3>
+                    <button 
+                      onClick={() => addItem('diplomas', 'fr')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg text-[10px] font-mono uppercase transition-all cursor-pointer"
+                    >
+                      <Plus size={12} /> Ajouter Diplôme (FR)
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(localData.diplomas?.fr || []).map((dip) => (
+                      <div key={dip.id} className="p-4 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3 relative group">
+                        <button 
+                          onClick={() => deleteItem('diplomas', 'fr', dip.id)}
+                          className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                          title="Supprimer ce diplôme"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="md:col-span-2">
+                            <label className="block text-[9px] text-slate-500 uppercase font-mono">Intitulé du Diplôme</label>
+                            <input 
+                              value={dip.degree} 
+                              onChange={(e) => updateItemField('diplomas', 'fr', dip.id, 'degree', e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs focus:border-cyan-500 outline-none" 
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] text-slate-500 uppercase font-mono">Période / Année</label>
+                            <input 
+                              value={dip.period} 
+                              onChange={(e) => updateItemField('diplomas', 'fr', dip.id, 'period', e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs focus:border-cyan-500 outline-none" 
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-slate-500 uppercase font-mono">Établissement / École / Université</label>
+                          <input 
+                            value={dip.institution} 
+                            onChange={(e) => updateItemField('diplomas', 'fr', dip.id, 'institution', e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs focus:border-cyan-500 outline-none" 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-slate-500 uppercase font-mono">Description / Spécialisation (Optionnel)</label>
+                          <textarea 
+                            value={dip.description || ''} 
+                            onChange={(e) => updateItemField('diplomas', 'fr', dip.id, 'description', e.target.value)}
+                            rows={2}
+                            className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-white font-mono text-xs leading-relaxed focus:border-cyan-500 outline-none" 
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
            )}
