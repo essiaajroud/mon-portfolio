@@ -14,7 +14,8 @@ import {
   VolumeX,
   Phone,
   Briefcase,
-  ExternalLink
+  ExternalLink,
+  GraduationCap
 } from 'lucide-react';
 
 import NeuralBackground from './components/NeuralBackground';
@@ -368,6 +369,52 @@ const App: React.FC = () => {
                 {activeSection === SectionId.ABOUT && (
                   <div className="space-y-8">
                     <div className="text-slate-300 leading-relaxed font-mono text-sm whitespace-pre-wrap">{portfolioData.about[lang]}</div>
+
+                    {/* Sub-section Diplômes & Formations (avant les compétences) */}
+                    {(() => {
+                      const diplomasList = portfolioData.diplomas?.[lang] || INITIAL_DATA.diplomas?.[lang] || [];
+                      if (diplomasList.length === 0) return null;
+                      return (
+                        <div className="pt-4 border-t border-slate-800/50">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-cyan-400 font-bold text-xs uppercase tracking-widest inline-flex items-center gap-2 px-2.5 py-1 bg-cyan-950/40 border border-cyan-500/20 rounded">
+                              <GraduationCap size={15} className="text-cyan-400" />
+                              {lang === 'en' ? 'Education_&_Diplomas' : 'Diplômes_&_Formations'}
+                            </h3>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {diplomasList.length} {lang === 'en' ? 'degrees' : 'diplômes'}
+                            </span>
+                          </div>
+                          <div className="space-y-3">
+                            {diplomasList.map((dip) => (
+                              <div 
+                                key={dip.id} 
+                                className="p-4 bg-slate-950/40 hover:bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 rounded-2xl transition-all space-y-1.5 group"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1.5">
+                                  <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors tracking-tight">
+                                    {dip.degree}
+                                  </h4>
+                                  <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/50 border border-cyan-500/20 px-2.5 py-0.5 rounded-full shrink-0 w-fit">
+                                    {dip.period}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-slate-300 font-mono font-medium flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/60"></span>
+                                  {dip.institution}
+                                </div>
+                                {dip.description && (
+                                  <p className="text-xs text-slate-400 font-mono leading-relaxed pt-1 border-t border-slate-800/40">
+                                    {dip.description}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="pt-4 border-t border-slate-800/50">
                        <h3 className="text-cyan-400 font-bold text-xs uppercase tracking-widest mb-4 inline-block px-2 py-1 bg-cyan-900/20 rounded">
                          {lang === 'en' ? 'Technical_Expertise' : 'Expertise_Technique'}
@@ -540,6 +587,34 @@ const App: React.FC = () => {
 
                 {activeSection === SectionId.CONTACT && (
                   <div className="space-y-6">
+                    {/* Message d'opportunités et projets IA */}
+                    <div className="p-5 bg-gradient-to-br from-cyan-950/40 via-slate-900/80 to-slate-950 border border-cyan-500/30 rounded-2xl space-y-3.5 shadow-xl shadow-cyan-950/30">
+                      <div className="flex items-center gap-2 text-cyan-400 text-xs font-mono font-bold uppercase tracking-wider">
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <span>{lang === 'en' ? "Let's work together" : "Travaillons ensemble"}</span>
+                      </div>
+                      
+                      <p className="text-sm md:text-base font-bold text-white leading-relaxed">
+                        {portfolioData.contactMessage?.[lang] ? (
+                          portfolioData.contactMessage[lang].split('\n\n')[0]
+                        ) : (
+                          lang === 'en' 
+                            ? "Do you have a project in Artificial Intelligence, Machine Learning, Data Science, or Generative AI?"
+                            : "Vous avez un projet en Intelligence Artificielle, Machine Learning, Data Science ou Generative AI ?"
+                        )}
+                      </p>
+                      
+                      <p className="text-xs md:text-sm text-slate-300 font-mono leading-relaxed">
+                        {portfolioData.contactMessage?.[lang] && portfolioData.contactMessage[lang].includes('\n\n') ? (
+                          portfolioData.contactMessage[lang].split('\n\n').slice(1).join('\n\n')
+                        ) : (
+                          lang === 'en'
+                            ? "I am open to professional opportunities, innovative projects, and collaborations in the field of AI."
+                            : "Je suis ouverte aux opportunités professionnelles, aux projets innovants et aux collaborations dans le domaine de l'IA."
+                        )}
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <a 
                         href={`mailto:${portfolioData.socials.email}`} 
