@@ -3,13 +3,15 @@ import {
   X, Save, Loader2, Sparkles, Plus, Trash2, 
   User, Award, Briefcase, BrainCircuit, 
   Zap, FileText, CheckCircle, AlertTriangle, LogOut,
-  Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp, Tag
+  Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp, Tag,
+  Download, ExternalLink
 } from 'lucide-react';
 import { PortfolioData } from '../types';
 import { PROFILE_IMAGE } from '../constants';
 import { db, auth, googleProvider } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { signInWithPopup, signOut as fbSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { storePdfDocument, triggerPdfDownload } from '../utils/documentStorage';
 
 const hashSha256 = async (text: string): Promise<string> => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
@@ -251,38 +253,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
   const handleSave = async () => {
     setIsSaving(true);
     setStatusMsg(null);
+    let firestoreSynced = false;
+
     try {
-      // Local immediate cache
+      // 1. Local immediate cache (instant update, zero latency)
       localStorage.setItem('portfolio_data_cache', JSON.stringify(localData));
       onUpdate(localData);
 
-      // Secure Server-side storage (if fullstack server is present)
+      // 2. Secure Server-side storage (if fullstack server is present, bounded by 2.5s timeout)
       if (authToken && !authToken.startsWith('neural_sec_')) {
         try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2500);
           await fetch('/api/admin/save-data', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify({ data: localData })
+            body: JSON.stringify({ data: localData }),
+            signal: controller.signal
           });
+          clearTimeout(timer);
         } catch (serverErr) {
-          console.log("Server save omitted (client mode)");
+          console.log("Server save bypassed (client mode or network)");
         }
       }
 
-      // Firestore cloud sync if reachable
+      // 3. Firestore cloud sync bounded by 3s timeout to prevent infinite hanging
       try {
         const portfolioDocRef = doc(db, 'config', 'portfolio');
-        await setDoc(portfolioDocRef, localData);
+        await Promise.race([
+          setDoc(portfolioDocRef, localData),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai cloud dépassé")), 3000))
+        ]);
+        firestoreSynced = true;
       } catch (cloudError: any) {
-        console.warn("Cloud persistence note:", cloudError);
+        console.warn("Cloud sync note:", cloudError?.message || cloudError);
       }
 
       setStatusMsg({ 
         type: 'success', 
-        text: 'SUCCÈS: Modifications enregistrées et appliquées avec succès.' 
+        text: firestoreSynced
+          ? 'SUCCÈS: Modifications enregistrées localement et synchronisées sur le Cloud Firestore.' 
+          : 'SUCCÈS: Modifications enregistrées et appliquées avec succès dans votre session.'
       });
     } catch (error: any) {
       console.error(error);
@@ -382,30 +396,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
       });
 
       // Upload to server if token available for clean professional static URL (/media/...)
-      if (authToken) {
-        const res = await fetch('/api/admin/upload-image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({ imageBase64: optimizedBase64, filename: 'profile' })
-        });
-        const json = await res.json();
-        if (res.ok && json.url) {
-          setLocalData(prev => ({
-            ...prev,
-            media: {
-              ...prev.media,
-              profileImage: json.url,
-              avatarImage: json.url
-            }
-          }));
-          setImageUploadMsg({ 
-            type: 'success', 
-            text: `Photo enregistrée ! URL statique professionnelle : ${json.url}` 
+      if (authToken && !authToken.startsWith('neural_sec_')) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 3000);
+          const res = await fetch('/api/admin/upload-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ imageBase64: optimizedBase64, filename: 'profile' }),
+            signal: controller.signal
           });
-          return;
+          clearTimeout(timer);
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && contentType.includes('application/json')) {
+            const json = await res.json();
+            if (json.url) {
+              setLocalData(prev => ({
+                ...prev,
+                media: {
+                  ...prev.media,
+                  profileImage: json.url,
+                  avatarImage: json.url
+                }
+              }));
+              setImageUploadMsg({ 
+                type: 'success', 
+                text: `Photo enregistrée ! URL statique : ${json.url}` 
+              });
+              return;
+            }
+          }
+        } catch (serverErr) {
+          console.log("Server image upload bypassed (client or static mode)");
         }
       }
 
@@ -439,54 +464,65 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
     setResumeUploadMsg(null);
 
     try {
-      const reader = new FileReader();
-      const base64Data: string = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
       const targetName = lang === 'en' ? 'cv_en.pdf' : 'cv_fr.pdf';
-      if (authToken) {
-        const res = await fetch('/api/admin/upload-file', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({ fileBase64: base64Data, targetName })
-        });
-        const json = await res.json();
-        if (res.ok && json.url) {
-          setLocalData(prev => ({
-            ...prev,
-            resume: {
-              ...prev.resume,
-              [lang]: json.url
-            }
-          }));
-          setResumeUploadMsg({
-            type: 'success',
-            text: `CV (${lang.toUpperCase()}) mis à jour avec succès : ${json.url}`
+      let serverUrl: string | null = null;
+
+      // 1. Safe attempt to upload to fullstack server if present (with 405 guard and timeout)
+      if (authToken && !authToken.startsWith('neural_sec_')) {
+        try {
+          const reader = new FileReader();
+          const base64Data: string = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
           });
-          return;
+
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 3000);
+          const res = await fetch('/api/admin/upload-file', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ fileBase64: base64Data, targetName }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && contentType.includes('application/json')) {
+            const json = await res.json();
+            if (json.url) {
+              serverUrl = json.url;
+            }
+          }
+        } catch (serverErr) {
+          console.log("Server upload bypassed (client or static mode)");
         }
       }
 
+      // 2. Persist directly into browser's IndexedDB (support large files, zero quota errors)
+      await storePdfDocument(`cv_${lang}`, file, targetName);
+
+      // 3. Update state with clean direct download path
+      const chosenPath = serverUrl || `/${targetName}`;
       setLocalData(prev => ({
         ...prev,
         resume: {
           ...prev.resume,
-          [lang]: `/${targetName}`
+          [lang]: chosenPath
         }
       }));
+
+      const sizeKb = (file.size / 1024).toFixed(1);
       setResumeUploadMsg({
         type: 'success',
-        text: `CV (${lang.toUpperCase()}) mis à jour : /${targetName}`
+        text: `CV (${lang.toUpperCase()}) importé avec succès (${sizeKb} Ko) ! Prêt pour le téléchargement.`
       });
     } catch (err: any) {
       console.error(err);
-      setResumeUploadMsg({ type: 'error', text: "Erreur lors du téléversement du document." });
+      setResumeUploadMsg({ type: 'error', text: `Erreur lors de l'importation: ${err.message || err}` });
     } finally {
       setIsUploadingResume(null);
     }
@@ -1093,10 +1129,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* CV English */}
-                    <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
+                    <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-slate-300 font-mono uppercase font-bold">CV Version Anglaise</span>
-                        <span className="text-[9px] font-mono text-slate-500">{localData.resume.en}</span>
+                        <span className="text-[9px] font-mono text-cyan-400/80 truncate max-w-[150px]">{localData.resume.en}</span>
                       </div>
                       <input 
                         type="file"
@@ -1108,24 +1144,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                           if (file) processResumeFile(file, 'en');
                         }}
                       />
+                      <div>
+                        <label className="block text-[9px] text-slate-400 font-mono uppercase mb-1">Chemin ou Lien Cloud (Google Drive, Dropbox, URL)</label>
+                        <input 
+                          value={localData.resume.en}
+                          onChange={(e) => updateNested(['resume', 'en'], e.target.value)}
+                          placeholder="/cv_en.pdf ou https://..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono text-xs focus:border-cyan-500 outline-none"
+                        />
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           disabled={isUploadingResume === 'en'}
                           onClick={() => resumeInputEnRef.current?.click()}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-white rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all cursor-pointer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/30 text-cyan-400 hover:text-cyan-300 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all cursor-pointer font-bold"
                         >
                           {isUploadingResume === 'en' ? <Loader2 className="animate-spin" size={12} /> : <Upload size={12} />}
-                          {isUploadingResume === 'en' ? "Import..." : "Téléverser CV (EN)"}
+                          {isUploadingResume === 'en' ? "Import..." : "Téléverser Fichier PDF (EN)"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerPdfDownload('cv_en', localData.resume.en, 'CV_Essia_Ajroud_EN.pdf')}
+                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono uppercase transition-all flex items-center gap-1 cursor-pointer"
+                          title="Tester le téléchargement immédiat"
+                        >
+                          <Download size={12} />
+                          <span>Tester</span>
                         </button>
                       </div>
                     </div>
 
                     {/* CV French */}
-                    <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
+                    <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-slate-300 font-mono uppercase font-bold">CV Version Française</span>
-                        <span className="text-[9px] font-mono text-slate-500">{localData.resume.fr}</span>
+                        <span className="text-[9px] font-mono text-cyan-400/80 truncate max-w-[150px]">{localData.resume.fr}</span>
                       </div>
                       <input 
                         type="file"
@@ -1137,15 +1191,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                           if (file) processResumeFile(file, 'fr');
                         }}
                       />
+                      <div>
+                        <label className="block text-[9px] text-slate-400 font-mono uppercase mb-1">Chemin ou Lien Cloud (Google Drive, Dropbox, URL)</label>
+                        <input 
+                          value={localData.resume.fr}
+                          onChange={(e) => updateNested(['resume', 'fr'], e.target.value)}
+                          placeholder="/cv_fr.pdf ou https://..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono text-xs focus:border-cyan-500 outline-none"
+                        />
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           disabled={isUploadingResume === 'fr'}
                           onClick={() => resumeInputFrRef.current?.click()}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-white rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all cursor-pointer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/30 text-cyan-400 hover:text-cyan-300 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all cursor-pointer font-bold"
                         >
                           {isUploadingResume === 'fr' ? <Loader2 className="animate-spin" size={12} /> : <Upload size={12} />}
-                          {isUploadingResume === 'fr' ? "Import..." : "Téléverser CV (FR)"}
+                          {isUploadingResume === 'fr' ? "Import..." : "Téléverser Fichier PDF (FR)"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerPdfDownload('cv_fr', localData.resume.fr, 'CV_Essia_Ajroud_FR.pdf')}
+                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono uppercase transition-all flex items-center gap-1 cursor-pointer"
+                          title="Tester le téléchargement immédiat"
+                        >
+                          <Download size={12} />
+                          <span>Tester</span>
                         </button>
                       </div>
                     </div>
