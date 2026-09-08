@@ -3,7 +3,7 @@ import {
   X, Save, Loader2, Sparkles, Plus, Trash2, 
   User, Award, Briefcase, BrainCircuit, 
   Zap, FileText, CheckCircle, AlertTriangle, LogOut,
-  Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp
+  Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp, Tag
 } from 'lucide-react';
 import { PortfolioData } from '../types';
 import { PROFILE_IMAGE } from '../constants';
@@ -605,6 +605,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
   };
 
   const isOwner = Boolean(authToken);
+
+  // Dynamic Categories gathered from current state + recommended AI/Tech presets
+  const existingProjectCats = Array.from(new Set([
+    'GenAI', 'NLP', 'Computer Vision', 'Data Science', 'Machine Learning', 
+    'Deep Learning', 'LLMs & Agents', 'Web Development', 'Robotics & IoT', 'MLOps',
+    ...(localData.projects.en || []).map(p => p.category?.trim()).filter(Boolean),
+    ...(localData.projects.fr || []).map(p => p.category?.trim()).filter(Boolean)
+  ]));
+
+  const existingSkillCats = Array.from(new Set([
+    'Core', 'Frameworks', 'Tools', 'Cloud & MLOps', 'Data Engineering', 
+    'Databases', 'Languages', 'DevOps', 'Research', 'Soft Skills',
+    ...(localData.skills || []).map(s => s.category?.trim()).filter(Boolean)
+  ]));
 
   if (authChecking) {
     return (
@@ -1341,6 +1355,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
            {/* Tab: Projects */}
            {activeTab === 'projects' && (
               <div className="space-y-8 max-w-4xl">
+                {/* Datalist for suggested and custom categories */}
+                <datalist id="project-categories-list">
+                  {existingProjectCats.map(cat => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
+
+                {/* Category Guide Banner */}
+                <div className="p-4 bg-cyan-950/30 border border-cyan-500/30 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs font-mono text-cyan-300">
+                  <div className="flex items-start gap-2.5">
+                    <Tag size={18} className="text-cyan-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold uppercase tracking-wider block text-white">Catégories de Projets 100% Personnalisables</span>
+                      <span className="text-slate-300 text-[11px]">
+                        Choisissez une catégorie suggérée ou <strong>tapez un nouveau type directement</strong> (ex: LLMs & Agents, Robotics, Web3...). Chaque nouvelle catégorie génère automatiquement son propre filtre sur votre portfolio !
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 shrink-0 max-w-xs">
+                    {existingProjectCats.slice(0, 6).map(c => (
+                      <span key={c} className="px-2 py-0.5 bg-slate-900 border border-cyan-500/20 text-[9px] text-cyan-400 rounded">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 {/* English projects */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -1362,6 +1403,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                         <button 
                           onClick={() => deleteItem('projects', 'en', project.id)}
                           className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors"
+                          title="Delete"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -1375,17 +1417,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                             />
                           </div>
                           <div>
-                            <label className="block text-[9px] text-slate-500 uppercase font-mono">Category</label>
-                            <select 
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="block text-[9px] text-slate-400 uppercase font-mono">Category</label>
+                              <span className="text-[8px] font-mono text-cyan-400/80">Choix ou saisie libre</span>
+                            </div>
+                            <input 
+                              list="project-categories-list"
                               value={project.category} 
                               onChange={(e) => updateItemField('projects', 'en', project.id, 'category', e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs"
-                            >
-                              <option value="NLP">NLP</option>
-                              <option value="Computer Vision">Computer Vision</option>
-                              <option value="Data Science">Data Science</option>
-                              <option value="GenAI">GenAI</option>
-                            </select>
+                              placeholder="ex: GenAI, Robotics..."
+                              className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded p-1.5 text-white font-mono text-xs" 
+                            />
                           </div>
                           <div>
                             <label className="block text-[9px] text-slate-500 uppercase font-mono">Tech Stack (comma-separated)</label>
@@ -1449,6 +1491,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                         <button 
                           onClick={() => deleteItem('projects', 'fr', project.id)}
                           className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors"
+                          title="Delete"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -1462,17 +1505,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                             />
                           </div>
                           <div>
-                            <label className="block text-[9px] text-slate-500 uppercase font-mono">Catégorie</label>
-                            <select 
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="block text-[9px] text-slate-400 uppercase font-mono">Catégorie</label>
+                              <span className="text-[8px] font-mono text-cyan-400/80">Choix ou saisie libre</span>
+                            </div>
+                            <input 
+                              list="project-categories-list"
                               value={project.category} 
                               onChange={(e) => updateItemField('projects', 'fr', project.id, 'category', e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs"
-                            >
-                              <option value="NLP">NLP</option>
-                              <option value="Computer Vision">Computer Vision</option>
-                              <option value="Data Science">Data Science</option>
-                              <option value="GenAI">GenAI</option>
-                            </select>
+                              placeholder="ex: GenAI, Robotics..."
+                              className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded p-1.5 text-white font-mono text-xs" 
+                            />
                           </div>
                           <div>
                             <label className="block text-[9px] text-slate-500 uppercase font-mono">Technologies (séparées par virgules)</label>
@@ -1635,10 +1678,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
            {/* Tab: Skills */}
            {activeTab === 'skills' && (
               <div className="space-y-6 max-w-4xl">
+                {/* Datalist for suggested and custom skill categories */}
+                <datalist id="skill-categories-list">
+                  {existingSkillCats.map(cat => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
+
+                {/* Skill Category Guide Banner */}
+                <div className="p-4 bg-cyan-950/30 border border-cyan-500/30 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs font-mono text-cyan-300">
+                  <div className="flex items-start gap-2.5">
+                    <Tag size={18} className="text-cyan-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold uppercase tracking-wider block text-white">Groupes de Compétences 100% Flexibles</span>
+                      <span className="text-slate-300 text-[11px]">
+                        Attribuez n'importe quel nom de groupe (ex: <strong>Cloud & MLOps</strong>, <strong>Data Engineering</strong>, <strong>Databases</strong>, <strong>Languages</strong>, <strong>DevOps</strong>). Chaque catégorie crée automatiquement un bloc dédié dans la section "Expertise Technique" de votre portfolio !
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 shrink-0 max-w-xs">
+                    {existingSkillCats.slice(0, 6).map(c => (
+                      <span key={c} className="px-2 py-0.5 bg-slate-900 border border-cyan-500/20 text-[9px] text-cyan-400 rounded">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <Zap className="text-cyan-400 animate-pulse" size={16} />
-                    Technical Skills List
+                    Technical Skills List ({localData.skills.length})
                   </h3>
                   <button 
                     onClick={addSkill}
@@ -1654,6 +1724,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                       <button 
                         onClick={() => deleteSkill(index)}
                         className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors"
+                        title="Delete"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1667,16 +1738,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                           />
                         </div>
                         <div>
-                          <label className="block text-[9px] text-slate-500 uppercase font-mono">Category</label>
-                          <select 
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="block text-[9px] text-slate-400 uppercase font-mono">Category</label>
+                            <span className="text-[8px] font-mono text-cyan-400/80">Choix ou saisie</span>
+                          </div>
+                          <input 
+                            list="skill-categories-list"
                             value={skill.category} 
                             onChange={(e) => updateSkill(index, 'category', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white font-mono text-xs"
-                          >
-                            <option value="Core">Core</option>
-                            <option value="Tools">Tools</option>
-                            <option value="Frameworks">Frameworks</option>
-                          </select>
+                            placeholder="ex: Core, Tools, Cloud..."
+                            className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded p-1.5 text-white font-mono text-xs" 
+                          />
                         </div>
                       </div>
                     </div>
