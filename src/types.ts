@@ -31,6 +31,14 @@ export interface Certification {
   icon?: string;
 }
 
+export interface Diploma {
+  id: string;
+  degree: string;
+  institution: string;
+  period: string;
+  description?: string;
+}
+
 // Added ChatMessage interface to resolve the import error in ChatTerminal.tsx
 export interface ChatMessage {
   id: string;
@@ -71,12 +79,20 @@ export interface PortfolioData {
     en: Certification[];
     fr: Certification[];
   };
+  diplomas?: {
+    en: Diploma[];
+    fr: Diploma[];
+  };
   experiences: {
     en: Experience[];
     fr: Experience[];
   };
   skills: Skill[];
   about: {
+    en: string;
+    fr: string;
+  };
+  contactMessage?: {
     en: string;
     fr: string;
   };
