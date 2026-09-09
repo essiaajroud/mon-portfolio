@@ -30,15 +30,32 @@ const NeuralBackground: React.FC = () => {
 
     let width = window.innerWidth;
     let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    let bgGradient: CanvasGradient;
+    const createGradient = () => {
+      bgGradient = ctx.createRadialGradient(
+        width / 2, 
+        height / 2, 
+        10, 
+        width / 2, 
+        height / 2, 
+        Math.max(width, height)
+      );
+      bgGradient.addColorStop(0, '#020617'); // slate-950
+      bgGradient.addColorStop(1, '#080c14');
+    };
+    createGradient();
 
     const resize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
       canvas.width = width;
       canvas.height = height;
+      createGradient();
     };
     window.addEventListener('resize', resize);
-    resize();
 
     // Mouse tracking
     const mouse = { x: -1000, y: -1000, active: false };
@@ -55,64 +72,52 @@ const NeuralBackground: React.FC = () => {
     window.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseleave', handleMouseLeave);
 
-    // Particles setup
+    // Particles setup (capped to 50 for max 60fps performance)
     const particles: Particle[] = [];
-    const particleCount = Math.min(80, Math.floor((width * height) / 16000));
+    const particleCount = Math.min(50, Math.max(25, Math.floor((width * height) / 22000)));
 
     for (let i = 0; i < particleCount; i++) {
-      const depth = Math.random() * 1.0 + 0.5; // 0.5 to 1.5
+      const depth = Math.random() * 0.8 + 0.6; // 0.6 to 1.4
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.35 * depth,
-        vy: (Math.random() - 0.5) * 0.35 * depth,
-        radius: (Math.random() * 1.5 + 1) * depth,
-        baseRadius: (Math.random() * 1.5 + 1) * depth,
+        vx: (Math.random() - 0.5) * 0.3 * depth,
+        vy: (Math.random() - 0.5) * 0.3 * depth,
+        radius: (Math.random() * 1.2 + 1) * depth,
+        baseRadius: (Math.random() * 1.2 + 1) * depth,
         pulsePhase: Math.random() * Math.PI * 2,
-        pulseSpeed: 0.015 + Math.random() * 0.025,
+        pulseSpeed: 0.015 + Math.random() * 0.02,
         depth,
       });
     }
 
     // Active electrical signals
     const signals: Signal[] = [];
-    const maxSignals = 15;
+    const maxSignals = 10;
 
     let animationFrameId: number;
 
     const draw = () => {
-      ctx.clearRect(0, 0, width, height);
-      
-      // Draw a subtle background gradient to blend with the slate theme
-      const bgGradient = ctx.createRadialGradient(
-        width / 2, 
-        height / 2, 
-        10, 
-        width / 2, 
-        height / 2, 
-        Math.max(width, height)
-      );
-      bgGradient.addColorStop(0, '#020617'); // slate-950
-      bgGradient.addColorStop(1, '#080c14');
       ctx.fillStyle = bgGradient;
       ctx.fillRect(0, 0, width, height);
 
       // Connective distance based on screen size
-      const maxDist = Math.min(170, width / 8 + 70);
+      const maxDist = Math.min(150, width / 9 + 60);
+      const maxDistSq = maxDist * maxDist;
 
-      // 1. Draw connection lines first (lower layer)
-      particles.forEach((p, i) => {
+      // 1. Draw connection lines
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const dx = p.x - p2.x;
           const dy = p.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
 
-          if (dist < maxDist) {
+          if (distSq < maxDistSq) {
+            const dist = Math.sqrt(distSq);
             const alpha = (1 - dist / maxDist) * 0.22 * ((p.depth + p2.depth) / 2);
             ctx.beginPath();
-            
-            // Neon cyan lines fading with distance and depth
             ctx.strokeStyle = `rgba(6, 182, 212, ${alpha})`;
             ctx.lineWidth = 0.45 * ((p.depth + p2.depth) / 2);
             ctx.moveTo(p.x, p.y);
@@ -120,12 +125,12 @@ const NeuralBackground: React.FC = () => {
             ctx.stroke();
 
             // Spawn electrical pulses along this line
-            if (signals.length < maxSignals && Math.random() < 0.0004) {
+            if (signals.length < maxSignals && Math.random() < 0.0003) {
               signals.push({
                 fromIndex: i,
                 toIndex: j,
                 progress: 0,
-                speed: 0.006 + Math.random() * 0.01
+                speed: 0.008 + Math.random() * 0.012
               });
             }
           }
@@ -135,23 +140,23 @@ const NeuralBackground: React.FC = () => {
         if (mouse.active) {
           const dx = p.x - mouse.x;
           const dy = p.y - mouse.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 190) {
-            const alpha = (1 - dist / 190) * 0.35;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < 32400) { // 180^2
+            const dist = Math.sqrt(distSq);
+            const alpha = (1 - dist / 180) * 0.35;
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(34, 211, 238, ${alpha})`; // Glowing bright cyan interaction
+            ctx.strokeStyle = `rgba(34, 211, 238, ${alpha})`;
             ctx.lineWidth = 0.75 * p.depth;
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(mouse.x, mouse.y);
             ctx.stroke();
 
-            // Exert a gentle gravitational attraction towards mouse
-            const force = (1 - dist / 190) * 0.12;
-            p.x -= dx * force * 0.04;
-            p.y -= dy * force * 0.04;
+            const force = (1 - dist / 180) * 0.1;
+            p.x -= dx * force * 0.03;
+            p.y -= dy * force * 0.03;
           }
         }
-      });
+      }
 
       // 2. Draw and update active electrical signals
       for (let s = signals.length - 1; s >= 0; s--) {
@@ -167,22 +172,15 @@ const NeuralBackground: React.FC = () => {
         const pTo = particles[signal.toIndex];
         
         if (pFrom && pTo) {
-          // Calculate exact position along line
           const sx = pFrom.x + (pTo.x - pFrom.x) * signal.progress;
           const sy = pFrom.y + (pTo.y - pFrom.y) * signal.progress;
 
-          // Draw glowing signal packet
+          // High-perf dual arc glow without costly context shadowBlur
           ctx.beginPath();
-          ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = '#22d3ee'; // Bright cyan
-          
-          // Outer blur glow effect
-          ctx.shadowBlur = 12;
-          ctx.shadowColor = '#22d3ee';
+          ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(34, 211, 238, 0.45)';
           ctx.fill();
-          ctx.shadowBlur = 0; // Reset blur for other renderings (performance)
 
-          // Inner white core
           ctx.beginPath();
           ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
