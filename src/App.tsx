@@ -45,9 +45,9 @@ const TypewriterText = ({ text, delay = 0, className = "" }: { text: string, del
         setDisplayedText(text.slice(0, index + 1));
         index++;
         if (index >= text.length) clearInterval(intervalId);
-      }, 80);
+      }, 25);
       return () => clearInterval(intervalId);
-    }, delay);
+    }, Math.min(delay, 200));
     return () => clearTimeout(startTimeout);
   }, [text, delay]);
 
@@ -62,14 +62,26 @@ const TypewriterText = ({ text, delay = 0, className = "" }: { text: string, del
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SectionId | null>(null);
-  const [rotation, setRotation] = useState(0);
   const [lang, setLang] = useState<'en' | 'fr'>('en');
-  const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialize with cached or default data instantly (0ms loading time)
+  const [portfolioData, setPortfolioData] = useState<PortfolioData>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('portfolio_data_cache');
+        if (cached) {
+          return { ...INITIAL_DATA, ...JSON.parse(cached) };
+        }
+      } catch {}
+    }
+    return INITIAL_DATA;
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const [isSoundOn, setIsSoundOn] = useState(true);
   const [isAdminRoute, setIsAdminRoute] = useState(false);
   const [selectedProjectCategory, setSelectedProjectCategory] = useState<string>('ALL');
+  const [isDownloadingCv, setIsDownloadingCv] = useState(false);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const hasWelcomedRef = useRef(false);
   const clickCountRef = useRef(0);
   const clickTimeoutRef = useRef<any>(null);
 
@@ -119,53 +131,39 @@ const App: React.FC = () => {
 
   const speak = React.useCallback((text: string) => {
     if (isAdminRoute || !isSoundOn || typeof window === 'undefined' || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
-    window.speechSynthesis.speak(utterance);
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
+      window.speechSynthesis.speak(utterance);
+    } catch {}
   }, [isAdminRoute, isSoundOn, lang]);
 
   useEffect(() => {
-    if (!isLoading && portfolioData) {
+    if (!hasWelcomedRef.current && isSoundOn) {
+      hasWelcomedRef.current = true;
       const welcomeMsg = lang === 'en' ? "Welcome to my portfolio" : "Bienvenue sur mon portfolio";
       const timeoutId = setTimeout(() => {
         speak(welcomeMsg);
-      }, 1000);
+      }, 800);
       return () => clearTimeout(timeoutId);
     }
-  }, [lang, isLoading, portfolioData, isSoundOn, speak]);
+  }, [lang, isSoundOn, speak]);
 
   useEffect(() => {
-    // Read from local storage first for instantaneous offline load
-    try {
-      const cached = localStorage.getItem('portfolio_data_cache');
-      if (cached) {
-        setPortfolioData(JSON.parse(cached));
-        setIsLoading(false);
-      }
-    } catch (e) {
-      console.warn("Could not read local portfolio cache", e);
-    }
-
-    // Listen for portfolio data changes from Firestore
+    // Listen for portfolio data changes from Firestore in background
     try {
       const portfolioDocRef = doc(db, 'config', 'portfolio');
       const unsubscribeData = onSnapshot(portfolioDocRef, (snapshot) => {
         if (snapshot.exists()) {
           const freshData = snapshot.data() as PortfolioData;
-          setPortfolioData(freshData);
+          setPortfolioData(prev => ({ ...prev, ...freshData }));
           try {
             localStorage.setItem('portfolio_data_cache', JSON.stringify(freshData));
           } catch {}
-          setIsLoading(false);
-        } else {
-          setPortfolioData(prev => prev || INITIAL_DATA);
-          setIsLoading(false);
         }
       }, (error) => {
         console.warn("Firestore onSnapshot error:", error);
-        setPortfolioData(prev => prev || INITIAL_DATA);
-        setIsLoading(false);
       });
 
       return () => {
@@ -173,8 +171,6 @@ const App: React.FC = () => {
       };
     } catch (err) {
       console.warn("Firestore doc initialization error:", err);
-      setPortfolioData(prev => prev || INITIAL_DATA);
-      setIsLoading(false);
     }
   }, []);
 
@@ -183,12 +179,6 @@ const App: React.FC = () => {
       synthRef.current = window.speechSynthesis;
     }
   }, []);
-
-  useEffect(() => {
-    if (activeSection !== null) return;
-    const interval = setInterval(() => setRotation(r => (r + 0.1) % 360), 50);
-    return () => clearInterval(interval);
-  }, [activeSection]);
 
   if (isLoading || !portfolioData) {
     const isFr = typeof navigator !== 'undefined' && (navigator.language || '').toLowerCase().startsWith('fr');
@@ -324,28 +314,50 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          {navItems.map((item) => {
-            const angleRad = ((item.angle + rotation) * Math.PI) / 180;
-            const radius = 135; 
-            const x = Math.cos(angleRad) * radius;
-            const y = Math.sin(angleRad) * radius;
-            return (
-              <motion.button 
-                key={item.id} 
-                className={`absolute w-14 h-14 rounded-full flex items-center justify-center border transition-all duration-500 z-30 shadow-md ${
-                  activeSection === item.id 
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 scale-110 shadow-cyan-500/40 ring-4 ring-cyan-500/20' 
-                    : 'bg-slate-900/90 text-cyan-400 border-cyan-500/20 hover:border-cyan-400 hover:scale-105'
-                }`}
-                style={{ transform: `translate(${x}px, ${y}px)` }} 
-                onClick={() => setActiveSection(activeSection === item.id ? null : item.id)} 
-                onMouseEnter={() => speak(item.label)}
-                title={item.label}
-              >
-                <item.icon size={22} />
-              </motion.button>
-            );
-          })}
+          {/* Orbit buttons isolated in GPU CSS animation: zero CPU re-renders */}
+          <div 
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              animation: 'orbit-spin 60s linear infinite',
+              animationPlayState: activeSection ? 'paused' : 'running'
+            }}
+          >
+            {navItems.map((item) => {
+              const angleRad = (item.angle * Math.PI) / 180;
+              const radius = 135; 
+              const x = Math.cos(angleRad) * radius;
+              const y = Math.sin(angleRad) * radius;
+              return (
+                <div
+                  key={item.id}
+                  className="absolute pointer-events-auto"
+                  style={{
+                    left: `calc(50% + ${x}px - 28px)`,
+                    top: `calc(50% + ${y}px - 28px)`,
+                    width: '56px',
+                    height: '56px'
+                  }}
+                >
+                  <button 
+                    className={`w-full h-full rounded-full flex items-center justify-center border transition-all duration-300 shadow-md ${
+                      activeSection === item.id 
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-300 scale-110 shadow-cyan-500/40 ring-4 ring-cyan-500/20' 
+                        : 'bg-slate-900/90 text-cyan-400 border-cyan-500/20 hover:border-cyan-400 hover:scale-110'
+                    }`}
+                    style={{
+                      animation: 'orbit-counter 60s linear infinite',
+                      animationPlayState: activeSection ? 'paused' : 'running'
+                    }}
+                    onClick={() => setActiveSection(activeSection === item.id ? null : item.id)} 
+                    onMouseEnter={() => speak(item.label)}
+                    title={item.label}
+                  >
+                    <item.icon size={22} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
         
         <AnimatePresence>
@@ -664,16 +676,24 @@ const App: React.FC = () => {
                       {lang === 'en' ? 'PDF format • Direct download' : 'Format PDF • Téléchargement direct'}
                     </p>
                     <button 
-                      onClick={() => {
-                        const targetUrl = lang === 'en' ? portfolioData.resume.en : portfolioData.resume.fr;
-                        const defaultName = `CV_${(portfolioData.identity.name || 'Essia_Ajroud').replace(/\s+/g, '_')}_${lang.toUpperCase()}.pdf`;
-                        triggerPdfDownload(`cv_${lang}`, targetUrl, defaultName);
+                      disabled={isDownloadingCv}
+                      onClick={async () => {
+                        setIsDownloadingCv(true);
+                        try {
+                          const targetUrl = lang === 'en' ? portfolioData.resume.en : portfolioData.resume.fr;
+                          const defaultName = `CV_${(portfolioData.identity.name || 'Essia_Ajroud').replace(/\s+/g, '_')}_${lang.toUpperCase()}.pdf`;
+                          await triggerPdfDownload(`cv_${lang}`, targetUrl, defaultName, portfolioData);
+                        } finally {
+                          setTimeout(() => setIsDownloadingCv(false), 500);
+                        }
                       }}
-                      className="inline-flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-xl transition-all group shadow-lg shadow-cyan-500/20 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-xl transition-all group shadow-lg shadow-cyan-500/20 cursor-pointer disabled:opacity-75"
                       onMouseEnter={() => speak(titles.download)}
                     >
-                      <Download size={18} />
-                      {titles.download}
+                      <Download size={18} className={isDownloadingCv ? "animate-bounce" : ""} />
+                      {isDownloadingCv 
+                        ? (lang === 'fr' ? 'Génération du PDF...' : 'Generating PDF...') 
+                        : titles.download}
                     </button>
                   </div>
                 )}
