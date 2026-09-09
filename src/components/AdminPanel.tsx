@@ -715,7 +715,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                 <label className="block text-[10px] text-slate-400 uppercase font-mono tracking-wider">
                   Code d'accès Maître
                 </label>
-                
+                <span className="text-[9px] font-mono text-cyan-500/80">Code par défaut : EssiaNeural2026!</span>
               </div>
               <div className="relative">
                 <input 
@@ -1184,7 +1184,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => triggerPdfDownload('cv_en', localData.resume.en, 'CV_Essia_Ajroud_EN.pdf')}
+                          onClick={() => triggerPdfDownload('cv_en', localData.resume.en, 'CV_Essia_Ajroud_EN.pdf', localData)}
                           className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono uppercase transition-all flex items-center gap-1 cursor-pointer"
                           title="Tester le téléchargement immédiat"
                         >
@@ -1231,7 +1231,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => triggerPdfDownload('cv_fr', localData.resume.fr, 'CV_Essia_Ajroud_FR.pdf')}
+                          onClick={() => triggerPdfDownload('cv_fr', localData.resume.fr, 'CV_Essia_Ajroud_FR.pdf', localData)}
                           className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono uppercase transition-all flex items-center gap-1 cursor-pointer"
                           title="Tester le téléchargement immédiat"
                         >
