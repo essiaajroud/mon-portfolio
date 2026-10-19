@@ -1,0 +1,124 @@
+{
+  "identity": {
+    "name": "ESSIA AJROUD",
+    "titles": {
+      "en": "AI ENGINEER & DATA SCIENTIST",
+      "fr": "INGÉNIEURE IA & DATA SCIENTIST"
+    },
+    "phoneticNameEn": "Ess-ee-ah Ah-zh-rood",
+    "phoneticNameFr": "Ess-ya Aj-roude"
+  },
+  "socials": {
+    "linkedin": "https://www.linkedin.com/in/essia-ajroud",
+    "github": "https://github.com/essia-ajroud",
+    "email": "essia@example.com",
+    "phone": "+216 00 000 000"
+  },
+  "media": {
+    "profileImage": "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=400",
+    "avatarImage": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=400"
+  },
+  "resume": {
+    "en": "/cv_en.pdf",
+    "fr": "/cv_fr.pdf"
+  },
+  "skills": [
+    { "name": "Python", "level": 95, "category": "Core" },
+    { "name": "TensorFlow/PyTorch", "level": 90, "category": "Frameworks" },
+    { "name": "NLP", "level": 85, "category": "Core" },
+    { "name": "Computer Vision", "level": 80, "category": "Core" },
+    { "name": "React/TS", "level": 70, "category": "Frameworks" },
+    { "name": "SQL/NoSQL", "level": 85, "category": "Tools" }
+  ],
+  "experiences": {
+    "en": [
+      {
+        "id": "1",
+        "role": "AI Engineer",
+        "company": "Tech Solutions Inc.",
+        "period": "2023 - Present",
+        "description": "Leading development of LLM-based customer support agents."
+      }
+    ],
+    "fr": [
+      {
+        "id": "1",
+        "role": "Ingénieure IA",
+        "company": "Tech Solutions Inc.",
+        "period": "2023 - Présent",
+        "description": "Direction du développement d'agents de support client."
+      }
+    ]
+  },
+  "projects": {
+    "en": [
+      {
+        "id": "1",
+        "title": "Neural Network Visualizer",
+        "description": "A 3D interactive tool to visualize weight distributions in LLMs.",
+        "techStack": ["Python", "Three.js", "React"],
+        "category": "GenAI",
+        "githubUrl": "https://github.com/essia-ajroud/nn-viz"
+      }
+    ],
+    "fr": [
+      {
+        "id": "1",
+        "title": "Visualisateur de Réseaux de Neurones",
+        "description": "Outil interactif 3D pour visualiser la distribution des poids.",
+        "techStack": ["Python", "Three.js", "React"],
+        "category": "GenAI"
+      }
+    ]
+  },
+  "certifications": {
+    "en": [
+      { "id": "1", "name": "TensorFlow Developer Certificate", "issuer": "Google", "date": "2023" }
+    ],
+    "fr": [
+      { "id": "1", "name": "Certificat Développeur TensorFlow", "issuer": "Google", "date": "2023" }
+    ]
+  },
+  "diplomas": {
+    "en": [
+      {
+        "id": "1",
+        "degree": "National Engineering Diploma in Computer Science & Artificial Intelligence",
+        "institution": "National School of Computer Sciences (ENSI)",
+        "period": "2020 - 2023",
+        "description": "Specialization in Artificial Intelligence, Machine Learning, Deep Learning, Big Data and Software Architecture."
+      },
+      {
+        "id": "2",
+        "degree": "Preparatory Cycle for Engineering Studies (Maths - Physics)",
+        "institution": "Preparatory Institute for Engineering Studies",
+        "period": "2018 - 2020",
+        "description": "Intensive training in advanced mathematics, physics, and algorithmic logic."
+      }
+    ],
+    "fr": [
+      {
+        "id": "1",
+        "degree": "Diplôme National d'Ingénieur en Génie Informatique & Intelligence Artificielle",
+        "institution": "École Nationale des Sciences de l'Informatique (ENSI)",
+        "period": "2020 - 2023",
+        "description": "Spécialisation en Intelligence Artificielle, Machine Learning, Deep Learning, Big Data et Architectures Logicielles."
+      },
+      {
+        "id": "2",
+        "degree": "Cycle Préparatoire aux Études d'Ingénieurs (Maths - Physique)",
+        "institution": "Institut Préparatoire aux Études d'Ingénieurs",
+        "period": "2018 - 2020",
+        "description": "Formation intensive en mathématiques avancées, physique fondamentale et logique algorithmique."
+      }
+    ]
+  },
+  "about": {
+    "en": "I am Essia Ajroud, a passionate Data Science and AI Engineer.",
+    "fr": "Je suis Essia Ajroud, ingénieure passionnée en Data Science et IA."
+  },
+  "contactMessage": {
+    "en": "Do you have a project in Artificial Intelligence, Machine Learning, Data Science, or Generative AI?\n\nI am open to professional opportunities, innovative projects, and collaborations in the field of AI.",
+    "fr": "Vous avez un projet en Intelligence Artificielle, Machine Learning, Data Science ou Generative AI ?\n\nJe suis ouverte aux opportunités professionnelles, aux projets innovants et aux collaborations dans le domaine de l'IA."
+  }
+}
