@@ -151,7 +151,34 @@ const App: React.FC = () => {
   }, [lang, isSoundOn, speak]);
 
   useEffect(() => {
-    // Listen for portfolio data changes from Firestore in background
+    // 1. Fetch static portfolio_data.json (guaranteed permanent persistence for Vercel & production)
+    fetch('/portfolio_data.json')
+      .then(res => {
+        if (res.ok) return res.json();
+        return null;
+      })
+      .then(staticData => {
+        if (staticData && staticData.identity) {
+          setPortfolioData(prev => {
+            // LocalStorage can hold fresh uncommitted drafts if any
+            let draftData: any = {};
+            try {
+              const cached = localStorage.getItem('portfolio_data_cache');
+              if (cached) draftData = JSON.parse(cached);
+            } catch {}
+            const merged = { ...INITIAL_DATA, ...staticData, ...draftData };
+            try {
+              localStorage.setItem('portfolio_data_cache', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        }
+      })
+      .catch(() => {
+        // Fallback or offline, use INITIAL_DATA or cache
+      });
+
+    // 2. Listen for real-time Firestore changes if available
     try {
       const portfolioDocRef = doc(db, 'config', 'portfolio');
       const unsubscribeData = onSnapshot(portfolioDocRef, (snapshot) => {
@@ -163,14 +190,15 @@ const App: React.FC = () => {
           } catch {}
         }
       }, (error) => {
-        console.warn("Firestore onSnapshot error:", error);
+        // Expected when Firestore project is offline or suspended; quietly fallback to static/local
+        console.debug("Firestore live sync offline, using local/static data:", error?.message);
       });
 
       return () => {
         unsubscribeData();
       };
     } catch (err) {
-      console.warn("Firestore doc initialization error:", err);
+      console.debug("Firestore initialization bypassed:", err);
     }
   }, []);
 

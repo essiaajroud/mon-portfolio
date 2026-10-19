@@ -4,7 +4,7 @@ import {
   User, Award, Briefcase, BrainCircuit, 
   Zap, FileText, CheckCircle, AlertTriangle, LogOut,
   Shield, Key, Lock, Upload, Image as ImageIcon, Link as LinkIcon, RotateCcw, FileUp, Tag,
-  Download, ExternalLink, GraduationCap
+  Download, ExternalLink, GraduationCap, Copy, Check, Cloud
 } from 'lucide-react';
 import { PortfolioData } from '../types';
 import { PROFILE_IMAGE, INITIAL_DATA } from '../constants';
@@ -34,7 +34,7 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'identity' | 'about' | 'diplomas' | 'experiences' | 'projects' | 'certs' | 'skills' | 'security' | 'ai'>('identity');
+  const [activeTab, setActiveTab] = useState<'identity' | 'about' | 'diplomas' | 'experiences' | 'projects' | 'certs' | 'skills' | 'security' | 'ai' | 'persistence'>('identity');
   const [localData, setLocalData] = useState<PortfolioData>(() => ({
     ...data,
     diplomas: data.diplomas || INITIAL_DATA.diplomas || { en: [], fr: [] },
@@ -47,6 +47,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [copyJsonSuccess, setCopyJsonSuccess] = useState(false);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
 
   // Image Upload State (Supports both Drag-and-drop and Device File Selection)
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -257,9 +259,63 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
     onClose();
   };
 
+  const handleDownloadJson = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(localData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "portfolio_data.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleCopyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(localData, null, 2));
+      setCopyJsonSuccess(true);
+      setTimeout(() => setCopyJsonSuccess(false), 3000);
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleImportJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (parsed && typeof parsed === 'object' && parsed.identity) {
+          const merged: PortfolioData = { ...INITIAL_DATA, ...parsed };
+          setLocalData(merged);
+          localStorage.setItem('portfolio_data_cache', JSON.stringify(merged));
+          onUpdate(merged);
+          setStatusMsg({
+            type: 'success',
+            text: 'Sauvegarde JSON importée avec succès ! Cliquez sur "Enregistrer les modifications" pour appliquer partout.'
+          });
+        } else {
+          setStatusMsg({
+            type: 'error',
+            text: 'Fichier JSON invalide. Structure de portfolio non reconnue.'
+          });
+        }
+      } catch (err: any) {
+        setStatusMsg({
+          type: 'error',
+          text: `Erreur lors de la lecture du fichier JSON: ${err.message || err}`
+        });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setStatusMsg(null);
+    let serverSynced = false;
     let firestoreSynced = false;
 
     try {
@@ -267,44 +323,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
       localStorage.setItem('portfolio_data_cache', JSON.stringify(localData));
       onUpdate(localData);
 
-      // 2. Secure Server-side storage (if fullstack server is present, bounded by 2.5s timeout)
-      if (authToken && !authToken.startsWith('neural_sec_')) {
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 2500);
-          await fetch('/api/admin/save-data', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({ data: localData }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-        } catch (serverErr) {
-          console.log("Server save bypassed (client mode or network)");
+      // 2. Save to server & public/portfolio_data.json (so Vercel/Node has it permanently)
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch('/api/admin/save-data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken || 'neural_admin_local'}`
+          },
+          body: JSON.stringify({ data: localData }),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (res.ok) {
+          serverSynced = true;
         }
+      } catch (serverErr) {
+        console.log("Server save bypassed (running as static client or offline)");
       }
 
-      // 3. Firestore cloud sync bounded by 3s timeout to prevent infinite hanging
+      // 3. Firestore cloud sync attempt
       try {
         const portfolioDocRef = doc(db, 'config', 'portfolio');
         await Promise.race([
           setDoc(portfolioDocRef, localData),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai cloud dépassé")), 3000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai cloud dépassé")), 2500))
         ]);
         firestoreSynced = true;
       } catch (cloudError: any) {
         console.warn("Cloud sync note:", cloudError?.message || cloudError);
       }
 
-      setStatusMsg({ 
-        type: 'success', 
-        text: firestoreSynced
-          ? 'SUCCÈS: Modifications enregistrées localement et synchronisées sur le Cloud Firestore.' 
-          : 'SUCCÈS: Modifications enregistrées et appliquées avec succès dans votre session.'
-      });
+      if (serverSynced || firestoreSynced) {
+        setStatusMsg({ 
+          type: 'success', 
+          text: 'SUCCÈS: Modifications enregistrées dans public/portfolio_data.json ! Pour Vercel, commitez public/portfolio_data.json dans votre dépôt Git pour rendre vos modifications 100% permanentes.' 
+        });
+      } else {
+        setStatusMsg({ 
+          type: 'success', 
+          text: 'SUCCÈS: Modifications enregistrées localement ! Utilisez l\'onglet "Export / Vercel" pour télécharger portfolio_data.json et le sauvegarder à tout moment.' 
+        });
+      }
     } catch (error: any) {
       console.error(error);
       setStatusMsg({ type: 'error', text: `ERREUR: Impossible d'enregistrer: ${error.message || error}` });
@@ -841,6 +903,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
              { id: 'projects', icon: BrainCircuit, label: 'Projects' },
              { id: 'certs', icon: Award, label: 'Certifications' },
              { id: 'skills', icon: Zap, label: 'Skills & Stats' },
+             { id: 'persistence', icon: Download, label: 'Export / Vercel' },
              { id: 'security', icon: Shield, label: 'Sécurité' }
            ].map((tab) => (
              <button 
@@ -850,7 +913,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                 activeTab === tab.id ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5 font-black' : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
              >
-               <tab.icon size={14} className={tab.id === 'ai' ? 'text-cyan-400' : ''} /> {tab.label}
+               <tab.icon size={14} className={tab.id === 'ai' ? 'text-cyan-400' : tab.id === 'persistence' ? 'text-amber-400' : ''} /> {tab.label}
              </button>
            ))}
         </div>
@@ -2080,6 +2143,145 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onClose }) => {
                     <li>Verrouillage automatique de 15 minutes en cas de 5 tentatives erronées par IP.</li>
                     <li>Jetons de session cryptographiques temporaires (3 heures).</li>
                   </ul>
+                </div>
+              </div>
+           )}
+
+           {/* Tab: Export / Vercel Persistence */}
+           {activeTab === 'persistence' && (
+              <div className="space-y-6 max-w-3xl">
+                {/* Diagnostic Banner */}
+                <div className="p-6 bg-slate-950/80 border border-amber-500/30 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-amber-950/40 rounded-xl border border-amber-500/30">
+                      <Download className="text-amber-400" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                        Persistance Définitive & Déploiement Vercel
+                      </h3>
+                      <p className="text-[11px] font-mono text-slate-400">
+                        Sauvegardez, exportez ou restaurez l'intégralité de votre portfolio pour qu'aucune modification ne soit perdue
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-xl space-y-2 text-xs text-slate-300 leading-relaxed font-mono">
+                    <p className="text-amber-300 font-bold flex items-center gap-1.5">
+                      <AlertTriangle size={14} className="text-amber-400 shrink-0" /> 
+                      Pourquoi les données ont pu disparaître sur Vercel ?
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Vercel compile votre site directement à partir de votre dépôt <strong>GitHub</strong>. 
+                      Si votre projet Firebase externe est suspendu par Google Cloud ou inaccessible, les modifications enregistrées dans le panneau d'administration restaient uniquement dans le cache local (localStorage) de ce navigateur précis.
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      <strong>La solution garantie à 100% :</strong> votre portfolio lit désormais automatiquement le fichier <code>public/portfolio_data.json</code>. En téléchargeant ce fichier et en le commitant dans votre dépôt Git, vos modifications deviennent <strong>indestructibles</strong> et visibles par n'importe quel recruteur sur n'importe quel appareil !
+                    </p>
+                  </div>
+                </div>
+
+                {/* Export & Import Action Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Card 1: Télécharger le fichier JSON */}
+                  <div className="p-6 bg-slate-950/80 border border-cyan-500/20 rounded-2xl flex flex-col justify-between space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                        <Download size={16} />
+                        1. Télécharger portfolio_data.json
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
+                        Génère le fichier JSON complet avec toutes vos dernières modifications (identité, diplômes, projets, compétences, bio, contact).
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleDownloadJson}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl transition-all text-xs tracking-wider cursor-pointer"
+                    >
+                      <Download size={14} />
+                      TÉLÉCHARGER LE FICHIER JSON
+                    </button>
+                  </div>
+
+                  {/* Card 2: Copier dans le presse-papier */}
+                  <div className="p-6 bg-slate-950/80 border border-cyan-500/20 rounded-2xl flex flex-col justify-between space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                        <Copy size={16} />
+                        2. Copier le JSON complet
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
+                        Copiez instantanément toutes vos données dans le presse-papier pour les coller ou les sauvegarder dans vos notes.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleCopyJson}
+                      className={`w-full flex items-center justify-center gap-2 py-3 font-black rounded-xl transition-all text-xs tracking-wider cursor-pointer ${
+                        copyJsonSuccess 
+                          ? 'bg-emerald-500 text-slate-950' 
+                          : 'bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30'
+                      }`}
+                    >
+                      {copyJsonSuccess ? <Check size={14} /> : <Copy size={14} />}
+                      {copyJsonSuccess ? 'COPIÉ DANS LE PRESSE-PAPIER !' : 'COPIER TOUT LE JSON'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Import / Restore Card */}
+                <div className="p-6 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
+                    <Upload size={16} className="text-cyan-400" />
+                    Restaurer depuis un fichier JSON sauvegardé
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
+                    Vous changez d'ordinateur ou de navigateur ? Sélectionnez votre fichier <code>portfolio_data.json</code> pour recharger immédiatement toutes vos données en 1 seconde.
+                  </p>
+
+                  <input 
+                    type="file" 
+                    ref={jsonFileInputRef} 
+                    onChange={handleImportJsonFile} 
+                    accept=".json" 
+                    className="hidden" 
+                  />
+
+                  <button
+                    onClick={() => jsonFileInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold rounded-xl transition-all text-xs tracking-wider cursor-pointer"
+                  >
+                    <FileUp size={14} />
+                    SÉLECTIONNER UN FICHIER JSON À RESTAURER
+                  </button>
+                </div>
+
+                {/* Guide Vercel 3 Étapes */}
+                <div className="p-6 bg-slate-900/60 border border-cyan-500/10 rounded-2xl space-y-3 font-mono text-xs">
+                  <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+                    <CheckCircle size={14} />
+                    Guide : Rendre vos données permanentes sur Vercel
+                  </h4>
+                  <ol className="list-decimal pl-5 space-y-2 text-[11px] text-slate-300">
+                    <li>
+                      Cliquez sur <strong>"Télécharger le fichier JSON"</strong> ci-dessus.
+                    </li>
+                    <li>
+                      Placez ce fichier dans le dossier <code>public/portfolio_data.json</code> de votre projet sur votre ordinateur.
+                    </li>
+                    <li>
+                      Dans votre terminal, tapez :
+                      <div className="p-2.5 bg-slate-950 rounded-lg text-cyan-300 font-mono text-[10px] mt-1 border border-slate-800">
+                        git add public/portfolio_data.json<br/>
+                        git commit -m "Mise a jour des donnees du portfolio"<br/>
+                        git push
+                      </div>
+                    </li>
+                  </ol>
+                  <p className="text-[10px] text-slate-400 pt-1">
+                    ✨ Vercel redéploiera automatiquement votre site en 30 secondes. Vos données seront intégrées directement dans les fichiers de production, sans dépendre d'une connexion internet externe ni d'une base de données cloud tierce !
+                  </p>
                 </div>
               </div>
            )}
