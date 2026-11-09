@@ -188,14 +188,13 @@
       {
         "id": "1",
         "title": "Insurance Claims Analytics & Prediction",
-        "description": "A Data Science project focused on insurance claims analytics and claim amount prediction. It includes a data cleaning and preparation pipeline, exploratory data analysis (EDA), feature engineering, and the development and evaluation of Machine Learning models. The project also incorporates a Business Intelligence component to analyze key performance indicators (KPIs) and support data monitoring through Power BI dashboards.",
+        "description": "A Data Science project focused on automobile insurance data analysis and claim frequency prediction. The work covers ETL (Extract, Transform, Load), data auditing and preparation, exploratory data analysis (EDA), KPI definition and monitoring, and SQL-based data analysis.\n\nA reproducible Machine Learning pipeline was developed using a Poisson regression model to estimate the expected number of claims per policy. The project includes hyperparameter selection through cross-validation and final evaluation on an independent test set, with an emphasis on experiment traceability, artifact management, reproducibility, and critical interpretation of results.",
         "techStack": [
           "Python",
           "Pandas",
           "NumPy",
           "Scikit-learn",
           "Power BI",
-          "Matplotlib",
           "SQL",
           "PostgreSQL"
         ],
@@ -205,7 +204,7 @@
       {
         "id": "1792424568518",
         "title": "Medical RAG Chatbot",
-        "description": "Built a conversational medical chatbot using Retrieval-Augmented Generation (RAG) to retrieve relevant information from a medical knowledge base and generate context-aware responses. Integrated semantic search with FAISS, text embeddings, a local LLM through Ollama, and an interactive web interface.",
+        "description": "MediBot is a medical chatbot application designed to provide informational answers to healthcare-related questions using a medical knowledge base. It relies on a Retrieval-Augmented Generation (RAG) architecture to retrieve relevant information before generating contextual responses with a large language model.",
         "techStack": [
           "Python",
           "FastAPI",
@@ -296,14 +295,13 @@
       {
         "id": "1",
         "title": "Insurance Claims Analytics & Prediction",
-        "description": "Projet de Data Science dédié à l’analyse des sinistres d’assurance et à la prédiction de leur montant. Il comprend un pipeline de préparation et de nettoyage des données, une analyse exploratoire (EDA), du feature engineering ainsi que le développement et l’évaluation de modèles de Machine Learning. Le projet intègre également une dimension Business Intelligence pour faciliter l’analyse des indicateurs clés (KPIs) et le suivi des données à travers des tableaux de bord Power BI.",
+        "description": "Projet de Data Science consacré à l’analyse des données d’assurance automobile et à la prédiction de la fréquence des sinistres. Le travail comprend l’ETL (extraction, transformation et chargement), l’audit et la préparation des données, l’analyse exploratoire (EDA), la définition et le suivi de KPI, ainsi que l’analyse des données avec SQL.\n\nUn pipeline de Machine Learning reproductible a été développé autour d’un modèle de régression de Poisson pour estimer le nombre attendu de sinistres par police. Le projet inclut la sélection des hyperparamètres par validation croisée, l’évaluation finale sur un jeu de test indépendant et met l’accent sur la traçabilité des expériences, la gestion des artefacts et l’interprétation critique des résultats.",
         "techStack": [
           "Python",
           "Pandas",
           "NumPy",
           "Scikit-learn",
           "Power BI",
-          "Matplotlib",
           "SQL",
           "PostgreSQL"
         ],
@@ -313,7 +311,7 @@
       {
         "id": "1792424595114",
         "title": "Medical RAG Chatbot",
-        "description": "Chatbot conversationnel exploitant l’architecture RAG pour rechercher des informations pertinentes dans une base de connaissances médicales et générer des réponses contextualisées. Le système intègre la recherche sémantique avec FAISS, les embeddings, un LLM local via Ollama et une interface web interactive.",
+        "description": "MediBot est une application de chatbot médical conçue pour fournir des réponses informatives à des questions de santé en s'appuyant sur une base documentaire médicale. Le projet utilise une architecture Retrieval-Augmented Generation (RAG) afin de retrouver des informations pertinentes avant de générer une réponse à l'aide d'un modèle de langage.",
         "techStack": [
           "Python",
           "FastAPI",
